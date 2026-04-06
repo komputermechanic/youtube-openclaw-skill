@@ -1,0 +1,44 @@
+{
+  "author": "Komputer Mechanic",
+  "website": "https://komputermechanic.com/",
+  "title": "OpenClaw YouTube Analytics",
+  "summary": "Full YouTube analytics skill for OpenClaw. Pulls rich channel and video data from the YouTube Data API (public, any channel) and your own dashboard-level analytics via the YouTube Analytics API (OAuth2). Covers views, watch time, traffic sources, geography, devices, demographics, revenue, and more — no need to open YouTube Studio.",
+  "scripts": {
+    "install": "setup-youtube-analytics.sh"
+  },
+  "skill": "youtube-analytics",
+  "skill_path": "~/.openclaw/workspace/skills/youtube-analytics",
+  "credentials": {
+    "api_key": "~/.openclaw/credentials/youtube-analytics.env",
+    "oauth":   "~/.openclaw/credentials/youtube-analytics-oauth.json"
+  },
+  "helper": "scripts/youtube_api.py",
+  "tiers": {
+    "public": {
+      "requires": "api_key",
+      "description": "Works on any YouTube channel. Great for competitor research."
+    },
+    "analytics": {
+      "requires": "oauth",
+      "description": "Your own channel only. Dashboard-level data: impressions, CTR, watch time, traffic sources, demographics, revenue."
+    }
+  },
+  "capabilities": [
+    "channel-stats",
+    "channel-videos",
+    "channel-top-videos",
+    "video-stats",
+    "search",
+    "compare-channels",
+    "trending",
+    "resolve-handle",
+    "analytics-overview",
+    "analytics-per-video",
+    "analytics-traffic-sources",
+    "analytics-geography",
+    "analytics-devices",
+    "analytics-demographics",
+    "analytics-revenue",
+    "analytics-realtime"
+  ]
+}
