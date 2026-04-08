@@ -363,9 +363,20 @@ if [ "$ACTION_CHOICE" = "1" ]; then
   echo -e "${GREEN}============================================${NC}"
   echo ""
   if [ -f "$OAUTH_FILE" ]; then
-    echo -e "${YELLOW}Authenticated channel:${NC}"
+    echo -e "${CYAN}--- Your channel ---${NC}"
     python3 "$SKILL_DIR/scripts/youtube_api.py" whoami --plain
     echo ""
+    echo -e "${CYAN}--- Last 7 days ---${NC}"
+    python3 "$SKILL_DIR/scripts/youtube_api.py" analytics-overview --days 7 --plain
+    echo ""
+  elif [ -f "$API_KEY_FILE" ]; then
+    read -p "Enter your YouTube channel handle or ID to preview your stats (e.g. @yourchannel): " PREVIEW_CHANNEL
+    echo ""
+    if [ -n "$PREVIEW_CHANNEL" ]; then
+      echo -e "${CYAN}--- Your channel ---${NC}"
+      python3 "$SKILL_DIR/scripts/youtube_api.py" channel "$PREVIEW_CHANNEL" --plain
+      echo ""
+    fi
   fi
   print_agent_prompt
   exit 0
