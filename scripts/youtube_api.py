@@ -241,22 +241,43 @@ def cmd_auth(args, flags):
         def log_message(self, *_):
             pass
 
-    server = HTTPServer(("localhost", 8080), _Handler)
-    server.timeout = 120
-
-    print(json.dumps({
-        "ok": True,
-        "action": "opening_browser",
-        "url": auth_url,
-        "message": "Browser opened for authorization. If it did not open, visit the URL manually.",
-    }, indent=2), flush=True)
+    # Always print the URL to stderr so it's visible even when stdout is captured
+    print("", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    print("Open this URL in your browser to authorize:", file=sys.stderr)
+    print("", file=sys.stderr)
+    print(auth_url, file=sys.stderr)
+    print("", file=sys.stderr)
+    print("After authorizing, your browser will redirect to", file=sys.stderr)
+    print("localhost:8080. If you are on a remote server and", file=sys.stderr)
+    print("get a connection error, copy the 'code=' value from", file=sys.stderr)
+    print("the URL bar and paste it below.", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    print("", file=sys.stderr, flush=True)
 
     try:
         webbrowser.open(auth_url)
     except Exception:
         pass
 
+    # Try local server first (works if running on local machine)
+    server = HTTPServer(("localhost", 8080), _Handler)
+    server.timeout = 60
     server.handle_request()
+
+    # Fall back to manual code entry if server didn't catch it
+    if not auth_code[0]:
+        try:
+            manual = input("Paste the full redirect URL or just the code here: ").strip()
+            if manual:
+                # If user pasted the full URL, extract the code param
+                if manual.startswith("http"):
+                    parsed = urllib.parse.parse_qs(urllib.parse.urlparse(manual).query)
+                    auth_code[0] = parsed.get("code", [None])[0]
+                else:
+                    auth_code[0] = manual
+        except (EOFError, KeyboardInterrupt):
+            pass
 
     if not auth_code[0]:
         fail("No authorization code received. Please try again.")
@@ -1065,12 +1086,23 @@ def cmd_analytics_top_videos(args, flags):
         "sort":       "-views",
         "maxResults": min(max_results, 200),
     })
-    rows   = parse_analytics(data)
+    rows = parse_analytics(data)
+
+    # Fetch titles in one batch call
+    video_ids = [r.get("video") for r in rows if r.get("video")]
+    titles = {}
+    if video_ids:
+        vdata = yt_get("/videos", {"part": "snippet", "id": ",".join(video_ids)})
+        for item in vdata.get("items", []):
+            titles[item["id"]] = item["snippet"]["title"]
+
     videos = []
     for r in rows:
+        vid   = r.get("video")
         views = int(r.get("views", 0))
         videos.append({
-            "video_id":             r.get("video"),
+            "video_id":             vid,
+            "title":                titles.get(vid, vid),
             "views":                views,
             "views_formatted":      fmt_num(views),
             "watch_time_hours":     round(int(r.get("estimatedMinutesWatched", 0)) / 60, 1),
@@ -1078,13 +1110,14 @@ def cmd_analytics_top_videos(args, flags):
             "likes":                int(r.get("likes", 0)),
             "comments":             int(r.get("comments", 0)),
             "subscribers_gained":   int(r.get("subscribersGained", 0)),
-            "url":                  f"https://youtube.com/watch?v={r.get('video')}",
+            "url":                  f"https://youtube.com/watch?v={vid}",
         })
 
     if flags.get("plain"):
         print(f"Top {len(videos)} videos ({start} to {end}):")
         for i, v in enumerate(videos, 1):
-            print(f"  {i}. {v['video_id']}: {v['views_formatted']} views | {v['avg_view_percentage']} watched | +{v['subscribers_gained']} subs")
+            print(f"  {i}. {v['title']}")
+            print(f"     {v['views_formatted']} views | {v['avg_view_percentage']} watched | +{v['subscribers_gained']} subs")
             print(f"     {v['url']}")
         return
 
@@ -1092,8 +1125,37 @@ def cmd_analytics_top_videos(args, flags):
 
 
 # ── Dispatcher ────────────────────────────────────────────────────────────────
+def cmd_whoami(args, flags):
+    data = yt_oauth_get("/channels", {
+        "part": "snippet,statistics",
+        "mine": "true",
+    })
+    items = data.get("items", [])
+    if not items:
+        fail("No YouTube channel found for the authenticated account.")
+    ch = items[0]
+    s, stats = ch["snippet"], ch["statistics"]
+    if flags.get("plain"):
+        print(f"Authenticated as:  {s['title']}")
+        print(f"Channel ID:        {ch['id']}")
+        print(f"URL:               https://youtube.com/channel/{ch['id']}")
+        print(f"Subscribers:       {fmt_num(stats.get('subscriberCount', 0))}")
+        print(f"Total views:       {fmt_num(stats.get('viewCount', 0))}")
+        print(f"Videos:            {stats.get('videoCount', 0)}")
+    else:
+        out({
+            "channel_id":   ch["id"],
+            "name":         s["title"],
+            "url":          f"https://youtube.com/channel/{ch['id']}",
+            "subscribers":  int(stats.get("subscriberCount", 0)),
+            "total_views":  int(stats.get("viewCount", 0)),
+            "video_count":  int(stats.get("videoCount", 0)),
+        })
+
+
 COMMANDS = {
     "auth":                   cmd_auth,
+    "whoami":                 cmd_whoami,
     "resolve":                cmd_resolve,
     "channel":                cmd_channel,
     "channel-videos":         cmd_channel_videos,

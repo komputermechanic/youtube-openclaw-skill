@@ -58,32 +58,45 @@ fi
 # ============================================
 # SHARED FUNCTIONS
 # ============================================
+LOCAL_REPO="$(cd "$(dirname "$0")" && pwd)"
+
 fetch_skill_files() {
-  echo -e "${YELLOW}Fetching skill files from GitHub...${NC}"
   mkdir -p "$SKILL_DIR/scripts" "$SKILL_DIR/references"
 
-  for FILE in SKILL.md _meta.json; do
-    if ! wget -q -O "$SKILL_DIR/$FILE" "$REPO_RAW/$FILE"; then
-      echo -e "${RED}❌ Failed to download $FILE. Check your internet connection.${NC}"
+  if [ -f "$LOCAL_REPO/SKILL.md" ]; then
+    echo -e "${YELLOW}Installing skill files from local repo...${NC}"
+    cp "$LOCAL_REPO/SKILL.md" "$SKILL_DIR/SKILL.md" && echo -e "${GREEN}✅ SKILL.md${NC}"
+    cp "$LOCAL_REPO/_meta.json" "$SKILL_DIR/_meta.json" && echo -e "${GREEN}✅ _meta.json${NC}"
+    cp "$LOCAL_REPO/scripts/youtube_api.py" "$SKILL_DIR/scripts/youtube_api.py" && echo -e "${GREEN}✅ scripts/youtube_api.py${NC}"
+    chmod +x "$SKILL_DIR/scripts/youtube_api.py"
+    for REF in install.md usage.md quota.md; do
+      if [ -f "$LOCAL_REPO/references/$REF" ]; then
+        cp "$LOCAL_REPO/references/$REF" "$SKILL_DIR/references/$REF" && echo -e "${GREEN}✅ references/$REF${NC}"
+      fi
+    done
+  else
+    echo -e "${YELLOW}Fetching skill files from GitHub...${NC}"
+    for FILE in SKILL.md _meta.json; do
+      if ! wget -q -O "$SKILL_DIR/$FILE" "$REPO_RAW/$FILE"; then
+        echo -e "${RED}❌ Failed to download $FILE. Check your internet connection.${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}✅ $FILE${NC}"
+    done
+    if ! wget -q -O "$SKILL_DIR/scripts/youtube_api.py" "$REPO_RAW/scripts/youtube_api.py"; then
+      echo -e "${RED}❌ Failed to download scripts/youtube_api.py.${NC}"
       exit 1
     fi
-    echo -e "${GREEN}✅ $FILE${NC}"
-  done
-
-  if ! wget -q -O "$SKILL_DIR/scripts/youtube_api.py" "$REPO_RAW/scripts/youtube_api.py"; then
-    echo -e "${RED}❌ Failed to download scripts/youtube_api.py.${NC}"
-    exit 1
+    chmod +x "$SKILL_DIR/scripts/youtube_api.py"
+    echo -e "${GREEN}✅ scripts/youtube_api.py${NC}"
+    for REF in install.md usage.md quota.md; do
+      if ! wget -q -O "$SKILL_DIR/references/$REF" "$REPO_RAW/references/$REF"; then
+        echo -e "${YELLOW}⚠️  Could not download references/$REF — skipping${NC}"
+      else
+        echo -e "${GREEN}✅ references/$REF${NC}"
+      fi
+    done
   fi
-  chmod +x "$SKILL_DIR/scripts/youtube_api.py"
-  echo -e "${GREEN}✅ scripts/youtube_api.py${NC}"
-
-  for REF in install.md usage.md quota.md; do
-    if ! wget -q -O "$SKILL_DIR/references/$REF" "$REPO_RAW/references/$REF"; then
-      echo -e "${YELLOW}⚠️  Could not download references/$REF — skipping${NC}"
-    else
-      echo -e "${GREEN}✅ references/$REF${NC}"
-    fi
-  done
 
   echo ""
 }
@@ -128,7 +141,7 @@ collect_api_key() {
 
 verify_api_key() {
   echo -e "${YELLOW}Verifying API key...${NC}"
-  RESULT=$(python3 "$SKILL_DIR/scripts/youtube_api.py" channel UCVHFbw7woqNB45atnE7XTRA 2>&1)
+  RESULT=$(python3 "$SKILL_DIR/scripts/youtube_api.py" channel UCQagAa6u1LBisEJTND5L42Q 2>&1)
   if echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('ok') else 1)" 2>/dev/null; then
     echo -e "${GREEN}✅ API key verified${NC}"
     echo ""
@@ -173,14 +186,11 @@ collect_oauth_credentials() {
   echo "If the browser does not open, copy the URL from the terminal and visit it manually."
   echo ""
 
-  AUTH_RESULT=$(python3 "$SKILL_DIR/scripts/youtube_api.py" auth "$OAUTH_CLIENT_ID" "$OAUTH_CLIENT_SECRET" 2>&1)
-
-  if echo "$AUTH_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('ok') else 1)" 2>/dev/null; then
+  if python3 "$SKILL_DIR/scripts/youtube_api.py" auth "$OAUTH_CLIENT_ID" "$OAUTH_CLIENT_SECRET"; then
     echo -e "${GREEN}✅ OAuth credentials saved${NC}"
     echo ""
   else
     echo -e "${RED}❌ OAuth authentication failed.${NC}"
-    echo "$AUTH_RESULT"
     exit 1
   fi
 }
@@ -317,6 +327,11 @@ if [ "$ACTION_CHOICE" = "1" ]; then
   echo -e "${GREEN}  Installation complete!${NC}"
   echo -e "${GREEN}============================================${NC}"
   echo ""
+  if [ -f "$OAUTH_FILE" ]; then
+    echo -e "${YELLOW}Authenticated channel:${NC}"
+    python3 "$SKILL_DIR/scripts/youtube_api.py" whoami --plain
+    echo ""
+  fi
   print_agent_prompt
   exit 0
 fi
@@ -362,6 +377,9 @@ if [ "$ACTION_CHOICE" = "3" ]; then
   echo -e "${GREEN}============================================${NC}"
   echo -e "${GREEN}  Re-authentication complete!${NC}"
   echo -e "${GREEN}============================================${NC}"
+  echo ""
+  echo -e "${YELLOW}Authenticated channel:${NC}"
+  python3 "$SKILL_DIR/scripts/youtube_api.py" whoami --plain
   echo ""
   print_agent_prompt
   exit 0
