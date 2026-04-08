@@ -1153,6 +1153,45 @@ def cmd_whoami(args, flags):
         })
 
 
+def cmd_video_comments(args, flags):
+    if not args:
+        fail("Usage: youtube_api.py video-comments <video_id> [--max N] [--order time|relevance]")
+    video_id    = args[0]
+    max_results = int(flags.get("max", 20))
+    order       = flags.get("order", "relevance")
+
+    data  = yt_get("/commentThreads", {
+        "part":       "snippet",
+        "videoId":    video_id,
+        "maxResults": min(max_results, 100),
+        "order":      order,
+        "textFormat": "plainText",
+    })
+    items = data.get("items", [])
+    if not items:
+        fail("No comments found or comments are disabled for this video.")
+
+    comments = []
+    for item in items:
+        top = item["snippet"]["topLevelComment"]["snippet"]
+        comments.append({
+            "author":    top.get("authorDisplayName"),
+            "text":      top.get("textDisplay"),
+            "likes":     int(top.get("likeCount", 0)),
+            "replies":   int(item["snippet"].get("totalReplyCount", 0)),
+            "published": top.get("publishedAt"),
+        })
+
+    if flags.get("plain"):
+        for i, c in enumerate(comments, 1):
+            print(f"  {i}. {c['author']} [{fmt_num(c['likes'])} likes | {c['replies']} replies]")
+            print(f"     {c['text']}")
+            print()
+        return
+
+    out({"video_id": video_id, "count": len(comments), "order": order, "comments": comments})
+
+
 COMMANDS = {
     "auth":                   cmd_auth,
     "whoami":                 cmd_whoami,
@@ -1173,6 +1212,7 @@ COMMANDS = {
     "analytics-revenue":      cmd_analytics_revenue,
     "analytics-realtime":     cmd_analytics_realtime,
     "analytics-top-videos":   cmd_analytics_top_videos,
+    "video-comments":         cmd_video_comments,
 }
 
 
