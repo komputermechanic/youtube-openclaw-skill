@@ -28,11 +28,22 @@ Your data flows directly from YouTube to your machine. Nothing is stored on thir
 
 ## Install
 
+**Option 1 — Download zip (recommended):**
+
+1. Download and extract `youtube-openclaw-skill.zip` from [komputermechanic.com](https://komputermechanic.com/)
+2. Upload the extracted folder to your server
+3. Run the setup script:
+   ```bash
+   bash setup-youtube-analytics.sh
+   ```
+
+**Option 2 — One-liner (when repo is public):**
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/komputermechanic/youtube-openclaw-skill/main/setup-youtube-analytics.sh)
 ```
 
-Or clone and run locally:
+**Option 3 — Clone from GitHub:**
 
 ```bash
 git clone https://github.com/komputermechanic/youtube-openclaw-skill
