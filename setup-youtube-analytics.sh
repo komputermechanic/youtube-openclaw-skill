@@ -47,12 +47,13 @@ echo ""
 echo "  1) Install          — Set up YouTube Analytics from scratch"
 echo "  2) Update API key   — Replace your YouTube Data API key"
 echo "  3) Re-authenticate  — Re-run OAuth2 for Analytics access"
-echo "  4) Uninstall        — Remove YouTube Analytics from OpenClaw"
+echo "  4) Update skill     — Pull latest skill files (keeps credentials)"
+echo "  5) Uninstall        — Remove YouTube Analytics from OpenClaw"
 echo ""
-read -p "Enter 1, 2, 3 or 4: " ACTION_CHOICE
+read -p "Enter 1, 2, 3, 4 or 5: " ACTION_CHOICE
 echo ""
 
-if [[ ! "$ACTION_CHOICE" =~ ^[1-4]$ ]]; then
+if [[ ! "$ACTION_CHOICE" =~ ^[1-5]$ ]]; then
   echo -e "${RED}❌ Invalid choice. Exiting.${NC}"
   exit 1
 fi
@@ -432,9 +433,28 @@ if [ "$ACTION_CHOICE" = "3" ]; then
 fi
 
 # ============================================
-# UNINSTALL FLOW
+# UPDATE SKILL FILES FLOW
 # ============================================
 if [ "$ACTION_CHOICE" = "4" ]; then
+
+  echo -e "${BOLD}Updating skill files...${NC}"
+  echo "Your credentials will not be touched."
+  echo ""
+  fetch_skill_files
+  check_python_deps
+
+  echo -e "${GREEN}============================================${NC}"
+  echo -e "${GREEN}  Skill updated successfully!${NC}"
+  echo -e "${GREEN}============================================${NC}"
+  echo ""
+  print_agent_prompt
+  exit 0
+fi
+
+# ============================================
+# UNINSTALL FLOW
+# ============================================
+if [ "$ACTION_CHOICE" = "5" ]; then
 
   echo -e "${YELLOW}This will remove:${NC}"
   echo "  - YouTube Analytics skill folder at $SKILL_DIR"
